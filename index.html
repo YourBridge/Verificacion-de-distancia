@@ -1,182 +1,132 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>¿Estás dentro de 500 m?</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <meta charset="UTF-8" />
+  <title>Kleto’s Snack - Verificación de Delivery</title>
+
+  <!-- FAVICON -->
+  <link rel="icon" type="image/png" href="favicon.png" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
   <style>
-    body{font-family:system-ui,Arial,Helvetica; margin:0; padding:1rem; color:#111; background:#fff;}
-    #map{height:320px; margin-top:1rem; display:none; border:1px solid #ddd; border-radius:8px;}
-    .ok{color:green; font-weight:700;}
-    .no{color:#c00; font-weight:700;}
-    button{padding:.6rem 1rem; font-size:1rem; border-radius:8px; border:0; background:#0a74da; color:#fff;}
-    .hint{font-size:.95rem; color:#444; margin-top:.6rem;}
-    .small{font-size:.85rem; color:#666;}
-    a.whatsapp{display:inline-block; margin-top:.5rem; padding:.5rem .8rem; background:#25D366; color:#fff; border-radius:6px; text-decoration:none;}
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background-image: url("logo.png");
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      font-family: Arial, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card {
+      background: rgba(0, 0, 0, 0.75);
+      color: white;
+      padding: 25px;
+      border-radius: 14px;
+      max-width: 360px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+
+    h1 {
+      margin-top: 0;
+    }
+
+    button {
+      background: #ffcc00;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 15px;
+    }
+
+    button:hover {
+      background: #ffdd33;
+    }
+
+    #result {
+      margin-top: 15px;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
-  <h2>¿Estás dentro de 500 metros de Kleto’s Snack?</h2>
-  <p id="status">Pulsa el botón y permite usar tu ubicación en el navegador. No necesitas registrarte.</p>
-  <button id="checkBtn">Comprobar mi ubicación</button>
-  <div id="result" style="margin-top:1rem;"></div>
-  <div id="map"></div>
-  <p class="hint" id="precisionHint"></p>
 
-  <!-- Reemplaza WHATSAPP_NUMBER por tu número sin el signo +, ejemplo: 18001234567 -->
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <div class="card">
+    <h1>Verificación de Delivery</h1>
+    <p>Presiona el botón para comprobar si estás dentro del área de 500 metros.</p>
+    <button onclick="verificarUbicacion()">Verificar ubicación</button>
+    <div id="result"></div>
+  </div>
+
   <script>
-    // ---------- CONFIGURACIÓN (YA AJUSTADA) ----------
-    const BUSINESS_LAT = 19.78207;    // coordenada proporcionada
-    const BUSINESS_LNG = -70.69165;   // coordenada proporcionada
-    const RADIUS_METERS = 500;        // radio de entrega gratis
-    const REQUIRED_ACCURACY = 50;     // máxima precisión aceptada en metros
-    const SAMPLE_COUNT = 3;           // número de lecturas GPS
-    const MAX_AGE_MS = 30 * 1000;     // lecturas más recientes que 30s
-    const WHATSAPP_NUMBER = 18495939991; // <-- reemplaza esto
-    // -------------------------------------------------
+    const tiendaLat = 18.4861;
+    const tiendaLng = -69.9312;
+    const radioMaximo = 500;
 
-    // Haversine - distancia en metros (preciso)
-    function haversine(lat1, lon1, lat2, lon2) {
-      const toRad = v => v * Math.PI / 180;
+    function verificarUbicacion() {
+      if (!navigator.geolocation) {
+        alert("Tu navegador no soporta geolocalización.");
+        return;
+      }
+
+      document.getElementById("result").innerText = "Obteniendo ubicación...";
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+
+          const distancia = calcularDistancia(
+            tiendaLat,
+            tiendaLng,
+            lat,
+            lng
+          );
+
+          if (distancia <= radioMaximo) {
+            document.getElementById("result").innerText =
+              "Estás dentro del área de delivery 🎉\nDistancia: " +
+              Math.round(distancia) + " metros";
+          } else {
+            document.getElementById("result").innerText =
+              "Estás fuera del área de delivery ❌\nDistancia: " +
+              Math.round(distancia) + " metros";
+          }
+        },
+        () => {
+          alert("No se pudo obtener tu ubicación.");
+        }
+      );
+    }
+
+    function calcularDistancia(lat1, lon1, lat2, lon2) {
       const R = 6371000;
+      const toRad = (x) => (x * Math.PI) / 180;
+
       const dLat = toRad(lat2 - lat1);
       const dLon = toRad(lon2 - lon1);
-      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-                Math.sin(dLon/2) * Math.sin(dLon/2);
+
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) *
+          Math.cos(toRad(lat2)) *
+          Math.sin(dLon / 2) *
+          Math.sin(dLon / 2);
+
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       return R * c;
     }
-
-    const status = document.getElementById('status');
-    const result = document.getElementById('result');
-    const btn = document.getElementById('checkBtn');
-    const precisionHint = document.getElementById('precisionHint');
-
-    btn.addEventListener('click', startCheck);
-
-    async function startCheck() {
-      result.innerHTML = '';
-      precisionHint.textContent = '';
-      if (!navigator.geolocation) {
-        status.textContent = 'Geolocalización no soportada por este navegador.';
-        return;
-      }
-      status.textContent = 'Solicitando permiso y tomando lecturas... (asegúrate de seleccionar "Ubicación precisa" si tu teléfono lo pregunta)';
-      try {
-        const samples = await takeSamples(SAMPLE_COUNT);
-        analyzeSamples(samples);
-      } catch (err) {
-        status.textContent = 'Error: ' + (err.message || err);
-        if (err && err.code === 1) showPrecisionAdvice('Parece que el permiso de ubicación fue denegado.');
-      }
-    }
-
-    function takeSingleSample(options = {}) {
-      return new Promise((resolve, reject) => {
-        const onSuccess = pos => {
-          resolve({
-            lat: pos.coords.latitude,
-            lon: pos.coords.longitude,
-            accuracy: pos.coords.accuracy,
-            timestamp: pos.timestamp
-          });
-        };
-        const onError = err => reject(err);
-        navigator.geolocation.getCurrentPosition(onSuccess, onError, options);
-      });
-    }
-
-    async function takeSamples(n) {
-      const opts = { enableHighAccuracy: true, maximumAge: 0, timeout: 11000 };
-      const arr = [];
-      for (let i = 0; i < n; i++) {
-        let s = await takeSingleSample(opts).catch(e => { throw e; });
-        arr.push(s);
-        await new Promise(r => setTimeout(r, 700));
-      }
-      return arr;
-    }
-
-    function analyzeSamples(samples) {
-      const now = Date.now();
-      for (const s of samples) {
-        if ((now - s.timestamp) > MAX_AGE_MS) {
-          status.textContent = 'Lectura antigua. Asegúrate de tener GPS activo y vuelve a intentarlo.';
-          return showPrecisionAdvice();
-        }
-      }
-      for (const s of samples) {
-        if (typeof s.accuracy !== 'number' || s.accuracy > REQUIRED_ACCURACY) {
-          status.textContent = 'Lectura con baja precisión (±' + Math.round(s.accuracy || 999) + ' m).';
-          return showPrecisionAdvice();
-        }
-      }
-      // promedio
-      const avg = samples.reduce((acc, s, _, arr) => {
-        acc.lat += s.lat / arr.length;
-        acc.lon += s.lon / arr.length;
-        acc.accuracy += s.accuracy / arr.length;
-        return acc;
-      }, { lat: 0, lon: 0, accuracy: 0 });
-
-      const dist = haversine(avg.lat, avg.lon, BUSINESS_LAT, BUSINESS_LNG);
-      status.textContent = 'Distancia calculada: ' + Math.round(dist) + ' m (precisión promedio ±' + Math.round(avg.accuracy) + ' m).';
-
-      if (dist <= RADIUS_METERS && avg.accuracy <= REQUIRED_ACCURACY) {
-        showSuccess(dist);
-      } else {
-        showFail(dist, avg.accuracy);
-      }
-      showMap(avg.lat, avg.lon, samples);
-    }
-
-    function showPrecisionAdvice(msg) {
-      precisionHint.innerHTML = `
-        <strong>Importante:</strong> Para resultados precisos:
-        <ul class="small">
-          <li>Cuando tu iPhone muestre la solicitud de ubicación, elige <em>Permitir ubicación precisa</em>.</li>
-          <li>Asegúrate de tener activado el GPS y buena señal (si puedes, sal al exterior).</li>
-          <li>Si usas Android, activa Ubicación de alta precisión en Ajustes → Ubicación.</li>
-        </ul>`;
-      result.innerHTML = '<div class="no">⚠️ Lecturas no suficientemente precisas. Sigue las instrucciones y vuelve a intentar.</div>';
-      if (msg) status.textContent = msg;
-    }
-
-    function showSuccess(dist) {
-      const wa = WHATSAPP_NUMBER === "WHATSAPP_NUMBER" ? "#" : `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hola, quiero hacer un pedido")}`;
-      result.innerHTML = `<div class="ok">✅ Estás dentro de ${RADIUS_METERS} m — ¡Tienes entrega GRATIS!<br>
-        ${wa === "#" ? '<span class="small">Reemplaza WHATSAPP_NUMBER en el código para habilitar el botón de pedir por WhatsApp.</span>' : `<a class="whatsapp" target="_blank" href="${wa}">Pedir por WhatsApp</a>` }</div>`;
-    }
-
-    function showFail(dist, acc) {
-      result.innerHTML = `<div class="no">❌ Estás fuera de ${RADIUS_METERS} m (distancia: ${Math.round(dist)} m).<br>
-        Precisión: ±${Math.round(acc)} m.</div>`;
-    }
-
-    // Map con Leaflet; muestra círculo verde de 500 m y marcadores
-    function showMap(avgLat, avgLon, samples) {
-      document.getElementById('map').style.display = 'block';
-      if (window._leafletMap) { window._leafletMap.remove(); window._leafletMap = null; }
-      const map = L.map('map', { zoomControl: false }).setView([BUSINESS_LAT, BUSINESS_LNG], 16);
-      window._leafletMap = map;
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
-      // Círculo verde de 500 m
-      L.circle([BUSINESS_LAT, BUSINESS_LNG], { radius: RADIUS_METERS, color: '#28a745', fill: false, weight: 2 }).addTo(map).bindPopup('Área de entrega (' + RADIUS_METERS + ' m)');
-      L.marker([BUSINESS_LAT, BUSINESS_LNG]).addTo(map).bindPopup('Nuestro local').openPopup();
-      L.marker([avgLat, avgLon]).addTo(map).bindPopup('Ubicación promedio detectada');
-      samples.forEach((s, i) => {
-        L.circle([s.lat, s.lon], { radius: Math.max(6, s.accuracy / 4), color: '#007bff', fillOpacity: 0.15 }).addTo(map).bindPopup('Muestra ' + (i + 1) + ' — accuracy ±' + Math.round(s.accuracy) + ' m');
-      });
-      const bounds = L.latLngBounds([[BUSINESS_LAT, BUSINESS_LNG], [avgLat, avgLon]]);
-      map.fitBounds(bounds.pad(0.5));
-    }
   </script>
 
-  <footer style="margin-top:1rem;" class="small">
-    <strong>Privacidad:</strong> Esta página compara la ubicación en tu navegador con la del negocio. No guarda ni transmite tu ubicación a servidores externos si subes este HTML tal cual (sin backend).
-  </footer>
 </body>
 </html>
